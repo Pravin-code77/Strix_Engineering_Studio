@@ -1,56 +1,196 @@
-# Welcome to your Expo app 👋
+<<<<<<< HEAD
+# Antigravity AI - Chat Assistant Mobile App
+=======
+# Chat Assistant Mobile App
+>>>>>>> 1a245fcd771c97e90ef5c4bd5968b576268278fb
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A production-ready React Native Expo mobile application built with TypeScript, Redux Toolkit, SQLite, and NativeWind (Tailwind CSS). The application allows users to configure and interact with multiple AI providers (OpenAI, Google Gemini, OpenRouter, LM Studio, or custom endpoints), switch models per conversation, read histories offline, search through titles/messages, and read responses out loud via Text-to-Speech.
 
-## Get started
+Developed to run natively on iOS, Android, and Web platforms inside the standard **Expo Go** environment.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## 📸 Reference Designs & Aesthetic
 
-2. Start the app
+The application is styled with a premium, human-crafted dark indigo theme:
+- **Background**: Deep Slate / Black (`#0B0F19`)
+- **Card Elements**: Deep Navy (`#151C2C`)
+- **Accent Elements**: Electric Indigo (`#6366F1`) & Soft Purple (`#8B5CF6`)
+- **Typography**: Responsive, high-contrast Slate/White fonts with elegant micro-animations for inputs, speech recorders, and message bubbles.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🛠️ Technology Stack & Dependencies
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- **Core Framework**: React Native & Expo SDK 56 (stable)
+- **Navigation**: Expo Router (file-based Stack and Tabs)
+- **State Management**: Redux Toolkit (React Redux) with async thunk database sync
+- **Local Database**: `expo-sqlite` (pure async queries, WAL-mode, schema versioned)
+- **Local Storage**: `AsyncStorage` (for lightweight theme preferences)
+- **Networking**: Axios & native `fetch` (with `TextDecoder` SSE stream reader)
+- **Form Handling**: React Hook Form with Zod validation
+- **Styling**: NativeWind & Tailwind CSS (v4 compatible)
+- **Animations**: React Native Reanimated (v3) for waveforms and fade-in entry transitions
+- **Markdown Rendering**: `react-native-markdown-display` (highly customized for light/dark themes)
+- **Voice/Speech**: `expo-speech` for TTS readouts, and simulated microphone recording waves for Voice Input.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+<<<<<<< HEAD
+## 📂 Architecture Layout (Clean Architecture)
 
-When you're ready, run:
+We adhere strictly to Clean Architecture principles in `src/`:
 
-```bash
-npm run reset-project
+```
+src/
+├── app/                  # Routing & Entry Pages (Expo Router)
+│   ├── (tabs)/           # Tab navigation (Chat list, Search, Settings)
+│   ├── chat/             # Active Chat Screen [id].tsx
+│   ├── _layout.tsx       # Root entry & SQLite bootstrap
+│   └── new-chat.tsx      # Modal to compose new conversation
+├── core/                 # Shared Infrastructure
+│   ├── constants/        # Default endpoints & model configs
+│   ├── errors/           # Custom AppErrors (Network, Auth, RateLimit, DB)
+│   ├── theme/            # Theme tokens & palettes
+│   └── types/            # TypeScript interfaces (Messages, Settings)
+├── data/                 # Data Access Details
+│   ├── database/         # SQLite DB client & migrations script
+│   └── repositories/     # SQLite repositories implementations
+├── domain/               # Domain Business Logic
+│   └── repositories/     # Repository contracts (Interfaces)
+├── services/             # Application Services
+│   ├── ai/               # AI Provider adapters & Factory
+│   └── speech/           # Text-To-Speech engine
+├── store/                # Redux state slices & store setup
+├── components/           # Atomic UI elements & Markdown renderer
+└── global.css            # Tailwind directives
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## 🗄️ Database Schema
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Three local tables are maintained in `antigravity.db`:
 
-## Learn more
+### 1. `conversations`
+- `id` (TEXT PRIMARY KEY) - UUID v4
+- `title` (TEXT NOT NULL)
+- `created_at` (TEXT) - ISO Timestamp
+- `updated_at` (TEXT) - ISO Timestamp
+- `provider_id` (TEXT, REFERENCES providers(id) ON DELETE SET NULL)
 
-To learn more about developing your project with Expo, look at the following resources:
+### 2. `messages`
+- `id` (TEXT PRIMARY KEY) - UUID v4
+- `conversation_id` (TEXT, REFERENCES conversations(id) ON DELETE CASCADE)
+- `role` (TEXT) - 'user' | 'assistant'
+- `content` (TEXT NOT NULL)
+- `timestamp` (TEXT) - ISO Timestamp
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 3. `providers`
+- `id` (TEXT PRIMARY KEY) - e.g., 'openai', 'gemini'
+- `provider_name` (TEXT) - 'openai' | 'gemini' | 'openrouter' | 'lmstudio' | 'custom'
+- `base_url` (TEXT) - Base API endpoint
+- `api_key` (TEXT) - Encrypted/masked credential
+- `model` (TEXT) - Model name identifier
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## ⚡ AI Integration Layer (Factory Pattern)
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+The application uses an abstract `AIProvider` interface to manage network communication, making the UI layer completely provider-agnostic. The `ProviderFactory` creates the correct concrete adapter at runtime:
+
+- **`OpenAIProvider`**: Connects to the standard OpenAI API (`/chat/completions`) using stream chunks.
+- **`GeminiProvider`**: Calls Google's Generative AI API using `streamGenerateContent` with the `alt=sse` query parameter to parse standard Server-Sent Events natively.
+- **`OpenRouterProvider`**: Passes custom dashboard headers (`HTTP-Referer` and `X-Title`) to list app usage stats correctly.
+- **`LMStudioProvider`**: Interfaces with local endpoints (e.g. `http://localhost:1234/v1`) without requiring API key authorization.
+
+---
+
+## 🚀 How to Run the App Locally
+
+### 1. Prerequisite Installations
+Make sure you have Node.js (v20+) and Git installed.
+
+### 2. Clone the repository and install dependencies
+```bash
+cd AI-Chat-App
+npm install
+```
+
+### 3. Start the Expo developer bundler
+```bash
+npm run start
+```
+*Press `a` to run on an Android device/emulator, or `w` to run on a Web Browser.*
+
+### 4. Running inside standard **Expo Go**
+- Download the **Expo Go** app from the iOS App Store or Android Google Play Store.
+- Scan the QR code displayed in your terminal using your phone camera (iOS) or the Expo Go scanner (Android).
+
+---
+
+## 🧪 Verification & Linting
+
+Verify TypeScript compiles cleanly without errors:
+```bash
+npx tsc --noEmit
+```
+=======
+## 🗄️ Database Schema
+
+Three local tables are maintained in `antigravity.db`:
+
+### 1. `conversations`
+- `id` (TEXT PRIMARY KEY) - UUID v4
+- `title` (TEXT NOT NULL)
+- `created_at` (TEXT) - ISO Timestamp
+- `updated_at` (TEXT) - ISO Timestamp
+- `provider_id` (TEXT, REFERENCES providers(id) ON DELETE SET NULL)
+
+### 2. `messages`
+- `id` (TEXT PRIMARY KEY) - UUID v4
+- `conversation_id` (TEXT, REFERENCES conversations(id) ON DELETE CASCADE)
+- `role` (TEXT) - 'user' | 'assistant'
+- `content` (TEXT NOT NULL)
+- `timestamp` (TEXT) - ISO Timestamp
+
+### 3. `providers`
+- `id` (TEXT PRIMARY KEY) - e.g., 'openai', 'gemini'
+- `provider_name` (TEXT) - 'openai' | 'gemini' | 'openrouter' | 'lmstudio' | 'custom'
+- `base_url` (TEXT) - Base API endpoint
+- `api_key` (TEXT) - Encrypted/masked credential
+- `model` (TEXT) - Model name identifier
+
+---
+
+## ⚡ AI Integration Layer (Factory Pattern)
+
+The application uses an abstract `AIProvider` interface to manage network communication, making the UI layer completely provider-agnostic. The `ProviderFactory` creates the correct concrete adapter at runtime:
+
+- **`OpenAIProvider`**: Connects to the standard OpenAI API (`/chat/completions`) using stream chunks.
+- **`GeminiProvider`**: Calls Google's Generative AI API using `streamGenerateContent` with the `alt=sse` query parameter to parse standard Server-Sent Events natively.
+- **`OpenRouterProvider`**: Passes custom dashboard headers (`HTTP-Referer` and `X-Title`) to list app usage stats correctly.
+- **`LMStudioProvider`**: Interfaces with local endpoints (e.g. `http://localhost:1234/v1`) without requiring API key authorization.
+
+---
+
+## 🚀 How to Run the App Locally
+
+### 1. Prerequisite Installations
+Make sure you have Node.js (v20+) and Git installed.
+
+### 2. Clone the repository and install dependencies
+```bash
+cd AI-Chat-App
+npm install
+### 3. Start the Expo developer bundler
+bash
+
+
+npm run start
+Press a to run on an Android device/emulator, or w to run on a Web Browser.
+
+4. Running inside standard Expo Go
+Download the Expo Go app from the iOS App Store or Android Google Play Store.
+Scan the QR code displayed in your terminal using your phone camera (iOS) or the Expo Go scanner (Android).
+>>>>>>> 1a245fcd771c97e90ef5c4bd5968b576268278fb
